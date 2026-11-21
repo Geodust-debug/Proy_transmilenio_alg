@@ -18,10 +18,18 @@ Algoritmo (por consulta):
 Las estaciones cerradas: no pueden ser origen, destino ni estacion de
 transbordo (pasar por ellas dentro de una ruta si cuenta como parada).
 
+Optimizacion (Parte E): los arreglos desde_o / hasta_d NO se crean en cada
+consulta. Se crean una vez (al construir el indice) llenos de "infinito" y
+cada consulta anota en una lista `tocados` que posiciones cambio. Al final
+solo se limpian esas posiciones. Asi una consulta ya no recorre las S
+estaciones de la red: solo las paradas que de verdad visito.
+    antes  : O(S + P) por consulta  (crear 4 arreglos de tamano S y recorrerlos)
+    ahora  : O(P)     por consulta
+
 Costos (S = estaciones de la red, P = paradas de las rutas que pasan por
 el origen y por el destino, L = total de filas de rutas.csv):
     construir el indice : O(L), una sola vez; se rehace tras editar rutas.
-    viaje()             : O(S + P). R5 no se mide en crecimiento.
+    viaje()             : O(P).
 """
 from .estructuras import TablaHash
 
@@ -59,6 +67,12 @@ class Viaje:
                 ids.append(e)
                 self._entradas[e].append([r, pos])
             self._ids_ruta.append(ids)
+        # Arreglos de trabajo reutilizables (siempre "limpios" entre consultas).
+        n = len(self._nombre_de)
+        self._desde_o = [_INFINITO] * n
+        self._ruta_o = [-1] * n
+        self._hasta_d = [_INFINITO] * n
+        self._ruta_d = [-1] * n
         self._listo = True
 
     # ------------------------------------------------------------------
@@ -75,56 +89,78 @@ class Viaje:
         if o is None or d is None:
             return None            # existe pero ninguna ruta pasa por ahi
 
-        n = len(self._nombre_de)
+        desde_o = self._desde_o
+        ruta_o = self._ruta_o
+        hasta_d = self._hasta_d
+        ruta_d = self._ruta_d
 
         # 1. Hacia adelante desde el origen, por cada ruta que pasa por el.
-        desde_o = [_INFINITO] * n
-        ruta_o = [-1] * n
+        tocados_o = []             # ids donde desde_o dejo de ser infinito
         for entrada in self._entradas[o]:
             r = entrada[0]
             pos_o = entrada[1]
             ids = self._ids_ruta[r]
             for q in range(pos_o + 1, len(ids)):
+                e = ids[q]
                 costo = q - pos_o
-                if costo < desde_o[ids[q]]:
-                    desde_o[ids[q]] = costo
-                    ruta_o[ids[q]] = r
+                if costo < desde_o[e]:
+                    if desde_o[e] == _INFINITO:
+                        tocados_o.append(e)
+                    desde_o[e] = costo
+                    ruta_o[e] = r
 
         # 2. Hacia atras desde el destino, por cada ruta que pasa por el.
-        hasta_d = [_INFINITO] * n
-        ruta_d = [-1] * n
+        tocados_d = []
         for entrada in self._entradas[d]:
             r = entrada[0]
             pos_d = entrada[1]
             ids = self._ids_ruta[r]
             for q in range(pos_d):
+                e = ids[q]
                 costo = pos_d - q
-                if costo < hasta_d[ids[q]]:
-                    hasta_d[ids[q]] = costo
-                    ruta_d[ids[q]] = r
+                if costo < hasta_d[e]:
+                    if hasta_d[e] == _INFINITO:
+                        tocados_d.append(e)
+                    hasta_d[e] = costo
+                    ruta_d[e] = r
 
         # 3. Mejor viaje directo.
         costo_directo = desde_o[d]
 
-        # 4. Mejor viaje con un transbordo (en una estacion abierta distinta
-        #    del origen y del destino).
+        # 4. Mejor viaje con un transbordo: una estacion t tiene que estar en
+        #    las DOS listas de tocados, asi que basta recorrer la mas corta.
+        #    En empate se elige el id menor (el mismo resultado de siempre).
+        if len(tocados_o) <= len(tocados_d):
+            candidatos = tocados_o
+        else:
+            candidatos = tocados_d
         mejor_total = _INFINITO
         mejor_t = -1
-        for t in range(n):
+        for t in candidatos:
             if desde_o[t] == _INFINITO or hasta_d[t] == _INFINITO:
                 continue
             if t == o or t == d:
                 continue
             total = desde_o[t] + hasta_d[t]
-            if total < mejor_total and self._esta_abierta(self._nombre_de[t]):
-                mejor_total = total
-                mejor_t = t
+            if total < mejor_total or (total == mejor_total and t < mejor_t):
+                if self._esta_abierta(self._nombre_de[t]):
+                    mejor_total = total
+                    mejor_t = t
 
-        # 5. Elegir.
+        # 5. Elegir (se arma la respuesta ANTES de limpiar los arreglos).
+        respuesta = None
         if costo_directo < _INFINITO and costo_directo <= mejor_total:
-            return [(self._nombres_ruta[ruta_o[d]], origen, destino)]
-        if mejor_t >= 0:
+            respuesta = [(self._nombres_ruta[ruta_o[d]], origen, destino)]
+        elif mejor_t >= 0:
             nombre_t = self._nombre_de[mejor_t]
-            return [(self._nombres_ruta[ruta_o[mejor_t]], origen, nombre_t),
-                    (self._nombres_ruta[ruta_d[mejor_t]], nombre_t, destino)]
-        return None
+            respuesta = [(self._nombres_ruta[ruta_o[mejor_t]], origen, nombre_t),
+                         (self._nombres_ruta[ruta_d[mejor_t]], nombre_t, destino)]
+
+        # 6. Limpiar SOLO lo que se toco: O(P), no O(S).
+        for e in tocados_o:
+            desde_o[e] = _INFINITO
+            ruta_o[e] = -1
+        for e in tocados_d:
+            hasta_d[e] = _INFINITO
+            ruta_d[e] = -1
+        return respuesta

@@ -1,0 +1,69 @@
+# Tema visual de la app (Parte E). Streamlit lo lee al arrancar desde la raiz del repo:
+#   python -m streamlit run front/app.py
+
+[server]
+enableStaticServing = true      # sirve front/static/ (fuentes y logo) en app/static/
+
+[client]
+toolbarMode = "minimal"         # sin boton "Deploy" ni menu de desarrollador
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#D42A20"            # rojo bus
+backgroundColor = "#ECEEEA"         # plano de la ciudad
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#262B33"               # grafito de la senaletica
+borderColor = "#D3D8D1"
+showWidgetBorder = true
+baseRadius = "8px"
+buttonRadius = "8px"
+linkColor = "#1F6FB2"
+redColor = "#D42A20"
+greenColor = "#12A26A"
+yellowColor = "#C98500"
+blueColor = "#1F6FB2"
+font = "Barlow, 'Segoe UI', Arial, sans-serif"
+headingFont = "'Barlow Condensed', Barlow, 'Arial Narrow', sans-serif"
+headingFontWeights = [700, 700, 600, 600, 600, 600]
+metricValueFontWeight = 700
+chartCategoricalColors = ["#D42A20", "#1F6FB2", "#3E9B46", "#EF7D16", "#7A4C9E", "#1797C2", "#C98500", "#D2457C", "#1E9C93", "#8D5B3B", "#5B6470", "#8FA516", "#262B33", "#E8B100", "#9AA6B2"]
+dataframeHeaderBackgroundColor = "#F3F4F1"
+
+[[theme.fontFaces]]
+family = "Barlow"
+url = "app/static/fuentes/barlow-latin-400-normal.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Barlow"
+url = "app/static/fuentes/barlow-latin-500-normal.woff2"
+weight = 500
+
+[[theme.fontFaces]]
+family = "Barlow"
+url = "app/static/fuentes/barlow-latin-600-normal.woff2"
+weight = 600
+
+[[theme.fontFaces]]
+family = "Barlow"
+url = "app/static/fuentes/barlow-latin-700-normal.woff2"
+weight = 700
+
+[[theme.fontFaces]]
+family = "Barlow Condensed"
+url = "app/static/fuentes/barlow-condensed-latin-600-normal.woff2"
+weight = 600
+
+[[theme.fontFaces]]
+family = "Barlow Condensed"
+url = "app/static/fuentes/barlow-condensed-latin-700-normal.woff2"
+weight = 700
+
+[theme.sidebar]
+backgroundColor = "#262B33"
+secondaryBackgroundColor = "#323842"
+textColor = "#E8EBEE"
+borderColor = "#3B424D"

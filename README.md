@@ -63,16 +63,20 @@ tarjeta que pasa por el torniquete, un reloj que corre en hora pico…).
 
 | Página | Requisitos | Qué se puede hacer |
 |---|---|---|
-| **Planear un viaje** | R5 | Elegir origen y destino y ver al bus recorrer el mapa parada por parada, con el transbordo marcado |
-| **Horarios y ranking** | R4, R6 | Ver en un tablero de salidas a qué hora pasa el próximo bus y cuántos minutos faltan; ranking de las estaciones con más buses |
-| **Estaciones** | R1, R2, R3, R8 | Buscar una estación, autocompletar, listar un rango alfabético, cerrar y reabrir (la estación se dibuja abierta o con la barrera abajo) |
-| **Operar la red** | R7, R9 | Ver el mapa de línea de una ruta, agregar o quitar paradas y deshacer o rehacer cualquier cambio |
+| **Planear un viaje** | R5 | Elegir origen y destino y ver al bus recorrer el mapa parada por parada, con el transbordo marcado. El botón **Mostrar mapa** despliega un mapa de papel con todas las estaciones: al pasar el mouse se ven los buses que pasan y con un clic se elige el origen o el destino |
+| **Horarios y ranking** | R4, R6 | Elegir una estación y una hora: se ve el próximo bus y la tabla con las rutas que pasan por ahí (incluidas las editadas en Operar la red); ranking de las estaciones con más buses |
+| **Estaciones** | R1, R2, R3, R8 | Buscar una estación (mientras se escribe se sugieren las que empiezan igual), listar un rango alfabético, cerrar y reabrir (la estación se dibuja abierta o con la barrera abajo) |
+| **Operar la red** | R7, R9 | Ver el mapa de línea de una ruta, tocar un tramo entre dos paradas para agregar una nueva ahí, quitar paradas y deshacer o rehacer cualquier cambio |
 | **Hora pico** | R10 | Simular la fila de abordaje en un andén animado: llegan buses, sube quien cabe y quien se queda se pone en rojo |
 | **Panel de rendimiento** | R11 | Medir cada operación en redes de 1 000 a 80 000 estaciones y comprobar su O grande |
 
 <p>
   <img src="docs/img/inicio.png" width="49%" alt="Página de inicio con las seis secciones">
   <img src="docs/img/hora_pico.png" width="49%" alt="Hora pico: andén con la fila y la gráfica de quienes se quedan">
+</p>
+<p>
+  <img src="docs/img/mapa.png" width="49%" alt="Mapa de papel con las estaciones, un viaje trazado y el globo de una estación">
+  <img src="docs/img/operar.png" width="49%" alt="Operar la red: clic en un tramo para agregar una parada">
 </p>
 <p>
   <img src="docs/img/estaciones.png" width="49%" alt="Estaciones: una estación cerrada con la barrera abajo">
@@ -91,13 +95,13 @@ motor/              el motor: toda la lógica de R1 a R10
 front/
   app.py            punto de entrada: menú, tema y página elegida
   inicio.py         página de inicio
-  pages/            una página por grupo de requisitos
-  visual/           tema, dibujos SVG y animaciones (Parte E)
+  paginas/          una página por grupo de requisitos
+  visual/           tema, dibujos SVG, animaciones y componentes interactivos (Parte E)
   static/           fuentes Barlow y logo, servidos por Streamlit
 .streamlit/         config.toml: colores, fuentes y opciones del tema
-datos/              estaciones.csv, rutas.csv, horarios.csv
+datos/              estaciones.csv, rutas.csv, horarios.csv y posiciones.csv (dónde se dibuja cada estación en el mapa)
 conversion/         convierte el GTFS real a los tres CSV
-herramientas/       generador de redes sintéticas y medidor de rendimiento (R11)
+herramientas/       generador de redes sintéticas, medidor de rendimiento (R11) y generador de posiciones del mapa
 pruebas/            pruebas del motor, del front y revisor de cosas prohibidas
 docs/               reparto del trabajo, guías de estudio e imágenes
 integrantes.md      quién hizo qué
@@ -164,10 +168,13 @@ no contiene reglas del sistema; recibe lo que devuelve el motor y lo dibuja.
 | `front/app.py` | Arma el menú con `st.navigation`, aplica el tema, pone el logo y ejecuta la página elegida. |
 | `visual/tema.py` | CSS global (plano de fondo, letreros, botones que se hunden al oprimirlos, cargas), el letrero de cada página, la escena de entrada y piezas reutilizables: insignias de ruta, fichas de estación, tablero de salidas, ranking con barras y mapa de línea. |
 | `visual/dibujos.py` | Todos los dibujos en SVG hechos a mano (bus articulado, estación, torniquete, reloj, personas, iconos). No hay emojis ni imágenes descargadas. |
+| `visual/componentes.py` y `visual/componentes/` | Los dos componentes interactivos con clic de ida y vuelta a Python (`st.components.v2`): el **mapa de la red** (papel que se desenrolla, zoom, globo con los buses de cada estación) y la **línea editable** de Operar la red (clic en un tramo para agregar una parada). El JavaScript solo dibuja y avisa el clic; las reglas siguen en el motor. |
 | `visual/animaciones.py` y `visual/plantillas/` | Las dos animaciones interactivas: el mapa del viaje y el andén de hora pico. Son páginas HTML pequeñas con JavaScript que se llenan con los datos del motor y se muestran con `components.html`. |
 | `static/` | Fuentes Barlow y Barlow Condensed (licencia SIL OFL) y el logo; se sirven desde la app, así que funcionan sin internet. |
 
 Decisiones de diseño de la interfaz:
+
+- **La carpeta se llama `paginas/` y no `pages/`.** Si se llama `pages/`, Streamlit la descubre solo y, al recargar con F5 estando en una página, ejecuta ese archivo directamente: sin menú, sin logo y sin tema. Con otro nombre, `app.py` siempre es la puerta de entrada.
 
 - **Señalética sobre un plano en blanco.** El fondo es un plano de calles muy suave; los títulos son letreros
   grafito como los de una estación, y las rutas aparecen como insignias con el color de su troncal
@@ -371,6 +378,7 @@ pendientes del panel salgan estables también con redes pequeñas.
 ## Supuestos
 
 - **Una estación es su nombre**, en mayúsculas y sin tildes, tal como aparece en `estaciones.csv`.
+- **El mapa es esquemático**, como un plano de metro: el GTFS no trae coordenadas, así que `datos/posiciones.csv` se genera con `herramientas/generar_posiciones.py`. Unas 30 estaciones conocidas (portales y troncales) se fijan de forma aproximada en su lugar de Bogotá y las demás se acomodan según qué rutas las unen. Sirve para ubicarse y elegir, no para medir distancias.
 - **Un viaje tiene como máximo un transbordo** y se mide en *paradas recorridas*, no en minutos ni en
   distancia. Gana el de menos paradas; con empate, el directo.
 - **Estación cerrada** significa que no se puede abordar ni bajar en ella ni usarla de transbordo, y que no
@@ -390,7 +398,7 @@ pendientes del panel salgan estables también con redes pequeñas.
 
 ## Panel de rendimiento (R11)
 
-La página **Panel de rendimiento** (`front/pages/6_Panel_rendimiento.py`) genera redes sintéticas con el
+La página **Panel de rendimiento** (`front/paginas/6_Panel_rendimiento.py`) genera redes sintéticas con el
 formato de los tres CSV (`herramientas/generar_red.py`), mide cada operación con la mediana de varias
 repeticiones y calcula la **pendiente de log(tiempo) contra log(n)**: ≈ 0 es constante o logarítmico, ≈ 1 es
 lineal. Junto a cada medición muestra la O grande esperada; el veredicto es *OK* si la pendiente medida está a

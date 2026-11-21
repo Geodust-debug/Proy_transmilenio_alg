@@ -1,24 +1,4 @@
-"""PARTE C -- Ranking de estaciones: R6.
-
-ESTADO ACTUAL: BASE PROVISIONAL (devuelve []). Quien tiene la Parte C
-reemplaza TODO este archivo, MANTENIENDO estas firmas:
-
-    Ranking(nombres, horarios, esta_abierta)
-        nombres      : lista con todos los nombres de estaciones
-        horarios     : objeto Horarios (usar horarios.buses_en(nombre))
-        esta_abierta : funcion nombre -> bool (cerradas NO entran al ranking)
-    .invalidar() -> None. La fachada lo llama cuando se cierra/reabre una
-                    estacion o se edita una ruta (el ranking pudo cambiar).
-    .top(k) -> lista de (nombre, buses_por_dia) de las k estaciones ABIERTAS
-               con mas buses, de mayor a menor.
-
-Enunciado: "se consulta muy seguido y cambia poco" -> piensen en NO
-recalcularlo en cada consulta. Decidan (y documenten) el desempate cuando
-dos estaciones tienen los mismos buses (sugerencia: orden alfabetico).
-Prohibido dentro de motor/: dict, set, sorted, .sort, min, max, in sobre
-listas, .index, .count, bisect, heapq, collections, functools.
-(Pueden hacer su propio heap o usar ordenar_mezcla de estructuras.py.)
-"""
+from .estructuras import ordenar_mezcla
 
 
 class Ranking:
@@ -26,9 +6,34 @@ class Ranking:
         self._nombres = nombres
         self._horarios = horarios
         self._esta_abierta = esta_abierta
+        self._orden = None             # cache: lista de (-buses, nombre)
+        self._version_vista = -1       # version de Horarios con la que se armo
 
     def invalidar(self):
-        return None        # TODO (Parte C)
+        """La fachada lo llama al cerrar/reabrir o editar rutas.
+
+        Cerrar/reabrir no obliga a rehacer el orden (se filtra al consultar) y
+        las ediciones de ruta suben horarios.version(), asi que aqui basta con
+        olvidar el cache solo si hiciera falta. Se deja el aviso por contrato.
+        """
+        return None
+
+    def _reconstruir(self):
+        pares = []
+        for nombre in self._nombres:
+            pares.append((-self._horarios.buses_en(nombre), nombre))
+        self._orden = ordenar_mezcla(pares)
+        self._version_vista = self._horarios.version()
 
     def top(self, k):
-        return []          # TODO (Parte C): R6
+        resultado = []
+        if k <= 0:
+            return resultado
+        if self._orden is None or self._version_vista != self._horarios.version():
+            self._reconstruir()
+        for par in self._orden:
+            if len(resultado) >= k:
+                break
+            if self._esta_abierta(par[1]):
+                resultado.append((par[1], -par[0]))
+        return resultado

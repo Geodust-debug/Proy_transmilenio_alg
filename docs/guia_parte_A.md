@@ -9,7 +9,7 @@ y además te piden un **cambio en vivo**.
 |---|---|
 | `motor/estructuras.py` | `TablaHash` (diccionario propio) y `ordenar_mezcla` (merge sort) |
 | `motor/viaje.py` | R5 |
-| `motor/fila.py` | R10 (`Cola` + `simular_fila`) |
+| `motor/fila.py` | R10 (`simular_fila`) |
 | `motor/red.py` | Fachada: la clase `Red` del contrato; solo delega y avisa a los módulos |
 
 ## 1. `TablaHash` (la usa `viaje.py`)
@@ -23,6 +23,10 @@ y además te piden un **cambio en vivo**.
 * **Si te preguntan "¿y si todas las claves caen en la misma cubeta?"** Degenera a O(n). Con un
   buen `hash` y rehash es rarísimo.
 * **Alternativa:** arreglo ordenado + búsqueda binaria (O(log n)); más lento que O(1) pero guarda orden.
+* **Optimización (Parte E):** la capacidad siempre es potencia de 2, así la cubeta sale con
+  `hash & (capacidad - 1)` (igual que `%` pero más rápido); cada entrada guarda su hash
+  (`[clave, valor, hash]`), así al crecer no se recalcula y al buscar se comparan primero dos enteros.
+  Detalle en `docs/guia_parte_E.md`.
 
 ## 2. `ordenar_mezcla` (merge sort)
 * Mezclar dos bloques ya ordenados es O(n) (se avanza con dos punteros). Se parte desde bloques de
@@ -31,6 +35,9 @@ y además te piden un **cambio en vivo**.
   `origen[j] < origen[i]` estricta). Lo necesitamos en R10.
 * **Por qué no quicksort:** O(n²) en el peor caso y no es estable. **Por qué no insertion/bubble:**
   O(n²), inviable con cientos de miles de personas.
+* **Optimización (Parte E):** los bloques iniciales de 16 se ordenan por inserción (con 16 elementos
+  la inserción es rápida y se ahorran 4 vueltas) y si dos bloques vecinos ya están en orden se copian
+  sin mezclar. Sigue siendo O(n log n) y estable (la misma idea de Timsort).
 
 ## 3. R5 — `viaje.py`
 **Modelo.** Un grafo bipartito: nodos *estación* y nodos *ruta*. `_entradas[e]` = rutas que pasan
@@ -60,7 +67,10 @@ transbordo → directo.
 **O grande.** `L` = filas de rutas.csv, `S` = estaciones, `P` = paradas de las rutas que pasan por
 origen y destino.
 * construir índice: O(L) (una vez; se invalida cuando se edita una ruta);
-* consulta: O(S + P). R5 no se mide en crecimiento.
+* consulta: **O(P)**. Antes era O(S + P) porque cada consulta creaba arreglos de tamaño S y los
+  recorría buscando el transbordo. Desde la Parte E los arreglos se crean una vez, cada consulta
+  anota en `tocados_o` / `tocados_d` qué posiciones cambió, busca el transbordo solo entre esas y al
+  final limpia solo esas. En la red de 80.000 estaciones pasó de ~2 ms a ~0,02 ms por consulta.
 
 **Preguntas típicas**
 * *¿Por qué no Dijkstra?* Con máximo 1 transbordo, dos pasadas bastan; Dijkstra necesitaría cola de
@@ -73,14 +83,20 @@ origen y destino.
   quitar una parada; reconstruir es O(L) y solo ocurre tras editar.
 
 ## 4. R10 — `fila.py`
-**Paso 1: ordenar.** Cada persona se codifica como `llegada * n + posición`. Un solo entero ordena
-por llegada y desempata por posición original. Se ordena con merge sort y luego `clave % n`
-recupera la posición.
+**Paso 1: ordenar.** Hay que ordenar a las personas por llegada y, en empate, por posición
+original (orden estable). Dos caminos (Parte E):
+* **Conteo** (el caso normal): si las llegadas son enteros en un rango W ≤ 4n, se cuenta cuántas
+  personas llegan en cada segundo, se hacen sumas acumuladas para saber dónde empieza cada segundo
+  y se reparten las personas en orden. Es O(n + W) = O(n) y estable.
+* **Merge sort** (rangos enormes o llegadas con decimales): se ordenan pares `(llegada, posición)`,
+  O(n log n).
 
-**Paso 2: simular con una cola (FIFO).** Para el bus número `b` (sale en `b * frecuencia`):
+**Paso 2: simular con una cola (FIFO).** Como la gente entra a la fila ya en orden de llegada, la
+cola es un tramo del arreglo ordenado: `orden[cabeza:fin]`. Encolar = mover `fin`; desencolar =
+mover `cabeza`. Para el bus número `b` (sale en `b * frecuencia`):
 1. Encolar a todas las personas que llegaron en o antes de esa hora.
 2. Si la cola está vacía, saltar al primer bus que sale en o después de la próxima llegada:
-   `ceil(t / frecuencia)` = `(t + f - 1) // f`.
+   `ceil(t / frecuencia)` = `-(-t // f)`.
 3. Si no, desencolar hasta `capacidad` personas: su salida es la hora del bus.
 
 **Traza del ejemplo** `simular_fila([30, 5, 5, 70], 60, 2)`:
@@ -89,18 +105,18 @@ recupera la posición.
 * Bus 2 (t=120): entra 3. Suben 0 y 3 → salida 120.
 * Resultado en el orden original: `[120, 60, 60, 120]` ✔
 
-**O grande** (n = personas): ordenar O(n log n) + simular O(n) = **O(n log n)**. Número de buses
-simulados ≤ 2n (cada iteración atiende a alguien o salta).
+**O grande** (n = personas): ordenar O(n) con conteo (u O(n log n) con merge sort) + simular O(n)
+= **O(n)** en el caso normal. Número de buses simulados ≤ 2n (cada iteración atiende a alguien o salta).
 
 **Preguntas típicas**
 * *¿Por qué una cola?* La fila real es FIFO: el primero en llegar es el primero en subir.
 * *¿Por qué no `lista.pop(0)`?* Es O(n) (mueve todos los elementos); haría la simulación O(n²).
-  Aquí `Cola` usa un índice de cabeza → O(1).
+  Aquí la cola son dos índices (cabeza y fin) sobre el arreglo ordenado → O(1).
 * *¿Por qué hay que ordenar?* Las llegadas vienen en cualquier orden y sube quien llegó antes.
-* *¿Y si todos llegan ya ordenados?* Seguiría siendo O(n log n) con merge sort (no se aprovecha).
-  Se podría detectar y saltar el ordenamiento.
-* *¿Por qué el techo `(t + f - 1) // f`?* Es la división hacia arriba con enteros: el primer múltiplo
-  de `f` que es ≥ `t`.
+* *¿Por qué conteo y no merge sort siempre?* Las llegadas son segundos dentro de una ventana
+  (rango pequeño comparado con n): contar es O(n) y en la práctica unas 4 veces más rápido.
+* *¿Por qué el techo `-(-t // f)`?* Es la división hacia arriba: el primer múltiplo de `f` que es
+  ≥ `t` (sirve con enteros y con decimales).
 
 ## 5. Cambios en vivo que podrían pedirte (ensáyalos)
 * "Que quien llega justo cuando sale el bus **no** alcance": cambia `<=` por `<` en la condición de

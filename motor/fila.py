@@ -8,44 +8,54 @@ bus se lleva como maximo `capacidad` personas; la gente sube en orden de
 llegada. Quien llega justo en el segundo en que sale un bus alcanza a subir.
 
 Algoritmo:
-    1. ORDENAR las personas por (hora de llegada, posicion original) con
-       merge sort -> O(n log n). Incluir la posicion original hace que los
-       empates se atiendan en el orden en que venian (estable).
+    1. ORDENAR las personas por (hora de llegada, posicion original). Un
+       orden estable deja los empates en el orden en que venian.
+         - Si las llegadas son numeros enteros dentro de un rango W pequeno
+           (W <= 4n, el caso normal: segundos dentro de una ventana), se usa
+           ORDENAMIENTO POR CONTEO: O(n + W) = O(n).        (Parte E)
+         - Si no, merge sort sobre la clave llegada*n + posicion: O(n log n).
     2. SIMULAR con una COLA (FIFO) = la fila real de personas:
          para cada bus: encolar a todos los que ya llegaron a su hora de
          salida; desencolar hasta `capacidad` personas y anotar su salida.
        Si la fila esta vacia, se salta directo al primer bus que sale
        despues de la proxima llegada (no se simulan buses vacios).
-    Costo total: O(n log n) por el ordenamiento + O(n) la simulacion
-    (n = numero de personas). Memoria O(n).
+       Como la gente entra a la fila YA en orden de llegada, la cola es un
+       tramo del arreglo ordenado: [cabeza, fin). Encolar = mover `fin`,
+       desencolar = mover `cabeza`. Ambas O(1), sin copiar a nadie. (Parte E)
+    Costo total: O(n) con conteo, O(n log n) con merge sort; simular O(n)
+    (n = numero de personas). Memoria O(n + W).
 """
 from .estructuras import ordenar_mezcla
 
 
-class Cola:
-    """Cola FIFO con un arreglo y un indice de cabeza: encolar y
-    desencolar son O(1). (Quitar con pop(0) seria O(n).)"""
+def _orden_por_conteo(llegadas, minimo, rango):
+    """Posiciones originales ordenadas por llegada (estable). O(n + rango)."""
+    n = len(llegadas)
+    inicio = [0] * (rango + 1)     # inicio[v] = primera casilla del valor v
+    for x in llegadas:
+        inicio[int(x - minimo) + 1] += 1
+    for v in range(1, rango + 1):  # sumas acumuladas
+        inicio[v] += inicio[v - 1]
+    orden = [0] * n
+    for i in range(n):             # de izquierda a derecha => estable
+        v = int(llegadas[i] - minimo)
+        orden[inicio[v]] = i
+        inicio[v] += 1
+    return orden
 
-    def __init__(self):
-        self._items = []
-        self._cabeza = 0           # posicion del proximo a salir
 
-    def encolar(self, x):
-        self._items.append(x)
-
-    def desencolar(self):
-        x = self._items[self._cabeza]
-        self._cabeza += 1
-        if self._cabeza > 1024 and self._cabeza * 2 > len(self._items):
-            self._items = self._items[self._cabeza:]   # liberar memoria
-            self._cabeza = 0
-        return x
-
-    def vacia(self):
-        return self._cabeza >= len(self._items)
-
-    def __len__(self):
-        return len(self._items) - self._cabeza
+def _orden_por_mezcla(llegadas):
+    """Igual que arriba pero con merge sort: O(n log n). Sirve para cualquier
+    llegada comparable (por ejemplo, rangos enormes o numeros con decimales)."""
+    n = len(llegadas)
+    claves = [0] * n
+    for i in range(n):
+        claves[i] = (llegadas[i], i)
+    claves = ordenar_mezcla(claves)
+    orden = [0] * n
+    for k in range(n):
+        orden[k] = claves[k][1]
+    return orden
 
 
 def simular_fila(llegadas, frecuencia, capacidad):
@@ -55,37 +65,45 @@ def simular_fila(llegadas, frecuencia, capacidad):
     if n == 0:
         return []
 
-    # 1. Ordenar: clave = llegada * n + posicion (un solo entero que ordena
-    #    primero por llegada y, en empate, por posicion original).
-    claves = [0] * n
-    for i in range(n):
-        claves[i] = llegadas[i] * n + i
-    claves = ordenar_mezcla(claves)
-    orden = [0] * n                # orden[k] = posicion original de la k-esima persona
-    for k in range(n):
-        orden[k] = claves[k] % n
+    # 1. Ordenar (conteo si se puede, si no merge sort).
+    enteros = True
+    minimo = llegadas[0]
+    maximo = llegadas[0]
+    for x in llegadas:
+        if x // 1 != x:            # tiene decimales: no sirve para contar
+            enteros = False
+            break
+        if x < minimo:
+            minimo = x
+        elif x > maximo:
+            maximo = x
+    if enteros and maximo - minimo + 1 <= 4 * n + 1024:
+        orden = _orden_por_conteo(llegadas, minimo, int(maximo - minimo) + 1)
+    else:
+        orden = _orden_por_mezcla(llegadas)
 
-    # 2. Simular con una cola.
+    # 2. Simular. La cola es el tramo orden[cabeza:fin] (FIFO).
     salidas = [0] * n
-    cola = Cola()
-    siguiente = 0                  # proxima persona (en `orden`) que aun no llega a la fila
-    atendidos = 0
+    cabeza = 0                     # primera persona de la fila
+    fin = 0                        # la fila llega hasta fin - 1
     bus = 1                        # el bus numero `bus` sale en bus * frecuencia
-    while atendidos < n:
+    while cabeza < n:
         salida = bus * frecuencia
-        while siguiente < n and llegadas[orden[siguiente]] <= salida:
-            cola.encolar(orden[siguiente])
-            siguiente += 1
-        if cola.vacia():
+        while fin < n and llegadas[orden[fin]] <= salida:   # encolar
+            fin += 1
+        if cabeza == fin:
             # Nadie espera: saltar al primer bus que sale en o despues de la
             # proxima llegada (techo de llegada / frecuencia).
-            t = llegadas[orden[siguiente]]
-            bus = (t + frecuencia - 1) // frecuencia
+            t = llegadas[orden[fin]]
+            bus = int(-(-t // frecuencia))     # techo, sirve con int y float
+            if bus < 1:
+                bus = 1
             continue
-        cupo = capacidad
-        while cupo > 0 and not cola.vacia():
-            salidas[cola.desencolar()] = salida
-            cupo -= 1
-            atendidos += 1
+        sube = fin - cabeza                                  # desencolar
+        if sube > capacidad:
+            sube = capacidad
+        for k in range(cabeza, cabeza + sube):
+            salidas[orden[k]] = salida
+        cabeza += sube
         bus += 1
     return salidas

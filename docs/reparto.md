@@ -15,12 +15,18 @@ pieza que cada quien va reemplazando.
 
 | Parte | Quién | Requisitos | Archivos que edita (solo estos) |
 |---|---|---|---|
-| **A** | Martín | R5 viaje, R10 fila, panel R11 | `motor/viaje.py`, `motor/fila.py`, `front/pages/4_Viaje.py`, `front/pages/5_Hora_pico.py`, `front/pages/6_Panel_rendimiento.py`, `herramientas/` |
-| **B** | Miguel | R1, R2, R3, R8 | `motor/estaciones.py`, `front/pages/1_Estaciones.py` |
-| **C** | Mauricio | R4, R6 + conversión GTFS | `motor/horarios.py`, `motor/ranking.py`, `front/pages/2_Horarios_y_ranking.py`, `conversion/` |
-| **D** | Tomás | R7, R9 | `motor/rutas.py`, `motor/historial.py`, `front/pages/3_Operar_red.py` |
+| **A** | Martín | R5 viaje, R10 fila, panel R11 | `motor/viaje.py`, `motor/fila.py`, `front/paginas/4_Viaje.py`, `front/paginas/5_Hora_pico.py`, `front/paginas/6_Panel_rendimiento.py`, `herramientas/` |
+| **B** | Miguel | R1, R2, R3, R8 | `motor/estaciones.py`, `front/paginas/1_Estaciones.py` |
+| **C** | Mauricio | R4, R6 + conversión GTFS | `motor/horarios.py`, `motor/ranking.py`, `front/paginas/2_Horarios_y_ranking.py`, `conversion/` |
+| **D** | Tomás | R7, R9 | `motor/rutas.py`, `motor/historial.py`, `front/paginas/3_Operar_red.py` |
 
 (Los nombres son una propuesta: cámbienlos si quieren, pero cada parte la hace UNA persona.)
+
+### Parte E (paquete extra: optimización y front animado)
+Se sube **de última**, cuando B, C y D ya estén en GitHub, porque le da el diseño nuevo a todas las
+páginas. Cambia `motor/viaje.py`, `motor/fila.py` y `motor/estructuras.py` (misma interfaz, más rápidos),
+`herramientas/medir.py`, todo `front/` y agrega `front/visual/`, `front/static/` y `.streamlit/`.
+Pasos en `docs/pasos_ParteE.md` y explicación en `docs/guia_parte_E.md`.
 
 Todos editan además **su sección** del `README.md` (decisiones, estructura, O grande) y su línea
 en `integrantes.md`. Nadie toca `motor/red.py`, `motor/carga.py` ni `motor/estructuras.py`.
@@ -35,7 +41,7 @@ git pull                                    # SIEMPRE antes de empezar a trabaja
 # ... editan SUS archivos ...
 
 python pruebas/revisar_prohibidos.py        # que motor/ no use nada prohibido
-git add motor/estaciones.py front/pages/1_Estaciones.py README.md   # solo lo suyo
+git add motor/estaciones.py front/paginas/1_Estaciones.py README.md   # solo lo suyo
 git commit -m "Describo lo que hice"
 git pull                                    # por si otro subió algo mientras trabajaban
 git push
@@ -65,14 +71,14 @@ Viaje(rutas,esta_abierta)  (A)      .invalidar() .viaje(origen,destino)
 
 ### Parte B — Estaciones (R1, R2, R3, R8)
 * Reemplazar `motor/estaciones.py` (hoy provisional y lento). Lea la cabecera del archivo.
-* Página: `front/pages/1_Estaciones.py` (buscar, autocompletar, rango, cerrar/reabrir).
+* Página: `front/paginas/1_Estaciones.py` (buscar, autocompletar, rango, cerrar/reabrir).
 * Cuidado: `esta_abierta` la llaman todos los demás módulos; tiene que ser O(1).
 * Casos borde: estación inexistente, ya cerrada, ya abierta, prefijo sin resultados, k = 0,
   rango con `desde` > `hasta`, rango cuyos extremos no existen o están cerrados.
 
 ### Parte A — Panel de rendimiento (R11), además de R5 y R10
 * Ya viene hecho: `herramientas/generar_red.py` (redes sintéticas), `herramientas/medir.py`
-  (mide y calcula la pendiente log-log) y `front/pages/6_Panel_rendimiento.py`.
+  (mide y calcula la pendiente log-log) y `front/paginas/6_Panel_rendimiento.py`.
 * Mientras las partes de los demás sean provisionales, el panel marcará "NO COINCIDE" en sus
   operaciones: es justo para lo que sirve. Cuando cada uno suba su versión eficiente, deben dar OK.
 * Al final: correr con 10.000, 20.000, 40.000 y 80.000 y escribir en `EXPLICACIONES` (en la página)
@@ -86,7 +92,7 @@ Viaje(rutas,esta_abierta)  (A)      .invalidar() .viaje(origen,destino)
   Las cerradas no entran. Decidan el desempate.
 * Qué pasa con los horarios y el conteo cuando se agrega o quita una parada (y cuando se
   deshace): decidan, documenten y pregunten al profesor (ver preguntas abiertas).
-* Página: `front/pages/2_Horarios_y_ranking.py`.
+* Página: `front/paginas/2_Horarios_y_ranking.py`.
 * Conversión: `conversion/convertir_gtfs.py` (GTFS de TransMilenio → los 3 CSV). Necesitan el zip
   del GTFS (~54 MB). Decidan qué hacer con horas tipo `25:10` y expliquenlo en el README.
 
@@ -98,7 +104,7 @@ Viaje(rutas,esta_abierta)  (A)      .invalidar() .viaje(origen,destino)
   Un cambio nuevo borra lo que había para rehacer.
 * Casos borde: ruta inexistente, `despues_de` que no está, `nueva` ya en la ruta, quitar la
   única/primera/última parada, deshacer sin nada que deshacer.
-* Página: `front/pages/3_Operar_red.py` (editar rutas, deshacer/rehacer).
+* Página: `front/paginas/3_Operar_red.py` (editar rutas, deshacer/rehacer).
 
 ## Preguntas abiertas para el profesor (el enunciado no lo dice)
 1. **R4:** si hay un bus exactamente a la hora pedida, ¿cuenta como "siguiente"? (Supuesto: sí.)

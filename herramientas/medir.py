@@ -42,16 +42,23 @@ OPERACIONES = [
     ("reabrir", "R8", "O(1) u O(log n)", 0.0),
     ("deshacer", "R9", "O(1)", 0.0),
     ("rehacer", "R9", "O(1)", 0.0),
-    ("simular_fila", "R10", "O(n log n)", 1.1),
-    ("viaje", "R5", "no se compara", None),
+    ("simular_fila", "R10", "O(n) (conteo)", 1.0),
+    ("viaje", "R5", "O(P)", 0.0),
 ]
 TOLERANCIA = 0.35
 
 
-def _tiempo(funcion):
+def _tiempo(funcion, veces=1):
+    """Segundos que tarda UNA llamada. Las operaciones de solo lectura se
+    repiten `veces` seguidas y se divide: una sola llamada de 1 microsegundo
+    queda por debajo de la precision del reloj y la pendiente sale ruidosa."""
     inicio = time.perf_counter()
-    funcion()
-    return time.perf_counter() - inicio
+    for _ in range(veces):
+        funcion()
+    return (time.perf_counter() - inicio) / veces
+
+
+LOTE = 20   # repeticiones seguidas de cada consulta de solo lectura
 
 
 def medir_red(n, repeticiones=30, semilla=1):
@@ -71,24 +78,24 @@ def medir_red(n, repeticiones=30, semilla=1):
 
     for _ in range(repeticiones):
         nombre = azar.choice(nombres)
-        muestras["estado"].append(_tiempo(lambda: red.estado(nombre)))
+        muestras["estado"].append(_tiempo(lambda: red.estado(nombre), LOTE))
 
         prefijo = azar.choice(nombres)[:6]
-        muestras["autocompletar"].append(_tiempo(lambda: red.autocompletar(prefijo, 10)))
+        muestras["autocompletar"].append(_tiempo(lambda: red.autocompletar(prefijo, 10), LOTE))
 
         i = azar.randrange(len(ordenadas) - 30) if len(ordenadas) > 31 else 0
         desde, hasta = ordenadas[i], ordenadas[min(i + 30, len(ordenadas) - 1)]
-        muestras["rango"].append(_tiempo(lambda: red.rango(desde, hasta)))
+        muestras["rango"].append(_tiempo(lambda: red.rango(desde, hasta), LOTE))
 
         ruta, paradas = azar.choice(datos.rutas)
         estacion = azar.choice(paradas)
-        muestras["proximo_bus"].append(_tiempo(lambda: red.proximo_bus(estacion, ruta, "12:00")))
+        muestras["proximo_bus"].append(_tiempo(lambda: red.proximo_bus(estacion, ruta, "12:00"), LOTE))
 
-        muestras["recorrido"].append(_tiempo(lambda: red.recorrido(ruta)))
+        muestras["recorrido"].append(_tiempo(lambda: red.recorrido(ruta), LOTE))
 
     red.ranking(10)   # calentamiento: la primera vez puede construir el ranking
     for _ in range(repeticiones):
-        muestras["ranking"].append(_tiempo(lambda: red.ranking(10)))
+        muestras["ranking"].append(_tiempo(lambda: red.ranking(10), LOTE))
 
     # agregar / quitar parada (se restaura la ruta despues de cada agregado)
     for _ in range(repeticiones):
@@ -117,12 +124,14 @@ def medir_red(n, repeticiones=30, semilla=1):
     for _ in range(3):
         muestras["simular_fila"].append(_tiempo(lambda: simular_fila(llegadas, 30, 80)))
 
-    # R5 (solo informativo)
-    for _ in range(min(repeticiones, 10)):
+    # R5: la primera consulta despues de editar rutas reconstruye el indice
+    # (O(L), una vez); se hace antes para medir solo la consulta, O(P).
+    red.viaje(datos.rutas[0][1][0], datos.rutas[1][1][-1])
+    for _ in range(repeticiones):
         _, p1 = azar.choice(datos.rutas)
         _, p2 = azar.choice(datos.rutas)
         o, d = azar.choice(p1), azar.choice(p2)
-        muestras["viaje"].append(_tiempo(lambda: red.viaje(o, d)))
+        muestras["viaje"].append(_tiempo(lambda: red.viaje(o, d), 5))
 
     for operacion, lista in muestras.items():
         if lista:

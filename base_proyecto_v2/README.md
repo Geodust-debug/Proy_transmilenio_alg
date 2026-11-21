@@ -27,13 +27,23 @@ integrantes.md  quién hizo qué
 ## Decisiones de diseño (R12)
 
 ### R1 · Buscar una estación
-*(Parte B — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
+**Estructura:** tabla hash propia (`TablaHash`, encadenamiento con rehash al pasar 0,75 de carga) de
+nombre → posición, más un arreglo de banderas `cerrada`. **Algoritmo:** consulta directa por clave.
+**Alternativas descartadas:** recorrer la lista (O(n)); búsqueda binaria sobre el arreglo ordenado
+(O(log n), más lenta que la tabla hash). **O grande** (n = número de estaciones): **O(1)** promedio.
 
 ### R2 · Autocompletar
-*(Parte B — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
+**Estructura:** arreglo con todos los nombres en orden alfabético (merge sort al cargar) y un árbol de
+Fenwick con las estaciones abiertas. **Algoritmo:** búsqueda binaria de la primera estación ≥ prefijo y
+avance mientras empiece por el prefijo; las cerradas se saltan con el árbol de Fenwick (siguiente abierta en
+O(log n)). **Alternativas descartadas:** trie (gasta mucha memoria y no sirve para R3); recorrer toda la lista
+(O(n)). **O grande** (n = estaciones, k = resultados pedidos): **O(log n + k)**.
 
 ### R3 · Listar un rango
-*(Parte B — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
+**Estructura:** la misma de R2. **Algoritmo:** dos búsquedas binarias (inicio ≥ desde y fin > hasta) y
+recorrido saltando cerradas. Si desde > hasta devuelve `[]`; los extremos no tienen que existir.
+**Alternativa descartada:** filtrar toda la lista (O(n)). **O grande** (n = estaciones, m = resultados):
+**O(log n + m)**.
 
 ### R4 · Próximo bus
 *(Parte C — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
@@ -65,7 +75,11 @@ medición de crecimiento.
 *(Parte D — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
 
 ### R8 · Cerrar y reabrir estaciones
-*(Parte B — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
+**Estructura:** bandera por estación + árbol de Fenwick (un 1 por estación abierta). **Algoritmo:** cambiar la
+bandera y actualizar el árbol; el arreglo ordenado no se mueve. Devuelve `False` si la estación no existe o ya
+estaba en ese estado. **Alternativas descartadas:** quitar/insertar en el arreglo al cerrar/reabrir (O(n));
+saltar cerradas una por una (peor caso O(cerradas)); árbol AVL (más complejo para el mismo O(log n)).
+**O grande** (n = estaciones): **O(log n)**.
 
 ### R9 · Deshacer y rehacer
 *(Parte D — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 

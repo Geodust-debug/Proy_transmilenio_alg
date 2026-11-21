@@ -72,7 +72,19 @@ medición de crecimiento.
 *(Parte C — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
 
 ### R7 · Editar rutas
-*(Parte D — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
+Estructura: una lista doblemente enlazada por ruta (nodos en arreglos paralelos _est, _sig, _ant, con cabeza, cola y largo por
+ruta) y una tabla hash propia (ruta, estación) → nodo para encontrar cualquier parada al instante.
+
+Algoritmo: agregar justo después de X = ubicar el nodo de X con la tabla hash y reconectar cuatro punteros; 
+quitar = enlazar entre sí el anterior y el siguiente; el recorrido normal sigue _sig desde lacabeza y el recorrido
+al revés sigue _ant desde la cola. Devuelve False si la ruta o la parada no existen, o si la estación nueva ya está en la ruta. 
+despues_de = None inserta al inicio (lo usa deshacer).
+
+Alternativas descartadas: arreglo por ruta (insertar/quitar mueveelementos, O(L)); lista simple 
+(recorrer al revés o quitar es O(L)); lista doble sin tabla hash (encontrar la parada es O(L)); árbol balanceado 
+(O(log L) y mucho más código).
+
+O grande (L = paradas de la ruta): agregar y quitar O(1); recorrido O(L); cargar O(N log L) con N filas de rutas.csv.
 
 ### R8 · Cerrar y reabrir estaciones
 **Estructura:** bandera por estación + árbol de Fenwick (un 1 por estación abierta). **Algoritmo:** cambiar la
@@ -82,7 +94,16 @@ saltar cerradas una por una (peor caso O(cerradas)); árbol AVL (más complejo p
 **O grande** (n = estaciones): **O(log n)**.
 
 ### R9 · Deshacer y rehacer
-*(Parte D — pendiente)* Estructura: · Algoritmo: · Alternativa descartada y por qué: · O grande (n = ): 
+Estructura: dos pilas (LIFO) con listas: operaciones hechas y operaciones deshechas.
+
+Algoritmo: cada cierre, reapertura o edición exitosa se apila como una tupla (("cerrar", e), ("agregar", ruta, nueva, despues_de),
+("quitar", ruta, e, anterior)...) y borra la pila de rehacer; deshacer pasa la cima de una pila a la otra y la fachada ejecuta la operación
+inversa (por eso quitar guarda el anterior); rehacer hace lo contrario. Si no hay nada, devuelve False.
+
+Alternativas descartadas: guardar una copia completa de la red en cada cambio (O(tamaño de la red) de memoria y tiempo por cambio); una
+sola lista con puntero (equivalente, pero las dos pilas se explican mejor).
+
+O grande: registrar, deshacer y rehacer O(1) (n = cantidad de operaciones guardadas no influye).
 
 ### R10 · Fila de abordaje
 **Estructura:** una cola FIFO (arreglo + índice de cabeza) que representa la fila de personas.
